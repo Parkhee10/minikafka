@@ -4,6 +4,7 @@ A simplified Kafka-style message broker built from scratch in Go — topics, par
 
 This is a learning/portfolio project focused on backend systems engineering: concurrency, safe shared state, and the core mechanics of a distributed log, rather than wrapping an existing library.
 
+![MiniKafka architecture](docs/architecture.svg)
 ## Status
 
 🚧 Work in progress — built incrementally over 10 days.
