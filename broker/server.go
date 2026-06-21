@@ -20,19 +20,20 @@ type Server struct {
 
 	dataDir string
 
-	mu     sync.Mutex
-	topics map[string]*Topic
-	groups map[string]*ConsumerGroup
+	mu         sync.Mutex
+	topics     map[string]*Topic
+	groups     map[string]*ConsumerGroup
+	membership map[string]*GroupMembership // key: group name
 }
 
 func NewServer(dataDir string) *Server {
 	return &Server{
-		dataDir: dataDir,
-		topics:  make(map[string]*Topic),
-		groups:  make(map[string]*ConsumerGroup),
+		dataDir:    dataDir,
+		topics:     make(map[string]*Topic),
+		groups:     make(map[string]*ConsumerGroup),
+		membership: make(map[string]*GroupMembership),
 	}
 }
-
 func (s *Server) getOrCreateTopic(name string) (*Topic, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -64,6 +65,16 @@ func (s *Server) getOrCreateGroup(name string) *ConsumerGroup {
 	g := NewConsumerGroup(name)
 	s.groups[name] = g
 	return g
+}
+func (s *Server) getOrCreateMembership(group string) *GroupMembership {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if gm, ok := s.membership[group]; ok {
+		return gm
+	}
+	gm := NewGroupMembership()
+	s.membership[group] = gm
+	return gm
 }
 
 func (s *Server) Produce(ctx context.Context, req *pb.ProduceRequest) (*pb.ProduceResponse, error) {
@@ -117,15 +128,19 @@ func (s *Server) Commit(ctx context.Context, req *pb.CommitRequest) (*pb.CommitR
 
 // JoinGroup is a minimal placeholder for now: assigns ALL partitions
 // to the joining consumer (no real rebalancing yet — that's Day 7).
+// JoinGroup registers this consumer as active in the group and
+// returns its real, rebalanced partition assignment — if other
+// consumers are already in the group, partitions get split between
+// them; if this is the only consumer, it gets everything.
 func (s *Server) JoinGroup(ctx context.Context, req *pb.JoinGroupRequest) (*pb.JoinGroupResponse, error) {
 	topic, err := s.getOrCreateTopic(req.Topic)
 	if err != nil {
 		return nil, err
 	}
-	assigned := make([]int32, topic.NumPartitions())
-	for i := range assigned {
-		assigned[i] = int32(i)
-	}
+
+	membership := s.getOrCreateMembership(req.Group)
+	assigned := membership.Join(req.ConsumerId, topic.NumPartitions())
+
 	return &pb.JoinGroupResponse{AssignedPartitions: assigned}, nil
 }
 
