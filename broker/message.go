@@ -10,3 +10,7 @@ type Message struct {
 	Offset    int64
 	Timestamp time.Time
 }
+
+func unixNanoToTime(nanos int64) time.Time {
+	return time.Unix(0, nanos)
+}
