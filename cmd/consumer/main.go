@@ -1,53 +1,84 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"log"
 	"time"
 
-	"github.com/parkheejha10/minikafka/broker"
+	pb "github.com/parkheejha10/minikafka/proto"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func main() {
-	topic := broker.NewTopic("orders", 3)
-	defer topic.Close()
+	conn, err := grpc.NewClient("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Fatalf("failed to connect to broker: %v", err)
+	}
+	defer conn.Close()
 
-	group := broker.NewConsumerGroup("order-processors")
+	client := pb.NewBrokerClient(conn)
+	ctx := context.Background()
 
-	fmt.Println("Producing 10 messages first, then consuming them...")
+	const topic = "orders"
+	const group = "order-processors"
 
-	// Produce 10 messages (same as the producer program), so this
-	// single program is self-contained and demoable on its own.
-	for i := 0; i < 10; i++ {
-		key := []byte(fmt.Sprintf("order-%d", i))
-		value := []byte(fmt.Sprintf("order placed at item %d", i))
-		topic.Produce(key, value)
+	joinResp, err := client.JoinGroup(ctx, &pb.JoinGroupRequest{
+		Group:      group,
+		Topic:      topic,
+		ConsumerId: "consumer-1",
+	})
+	if err != nil {
+		log.Fatalf("failed to join group: %v", err)
 	}
 
-	fmt.Println("\nNow consuming from each partition, starting from last committed offset:")
+	fmt.Printf("Joined group %q, assigned partitions: %v\n\n", group, joinResp.AssignedPartitions)
 
-	// For each partition, ask the consumer group "where did I leave
-	// off?", read forward from there, then commit the new position.
-	for p := int32(0); p < topic.NumPartitions(); p++ {
-		startOffset := group.CommittedOffset("orders", p)
-		messages := topic.Partition(p).Fetch(startOffset, 100)
+	for _, partition := range joinResp.AssignedPartitions {
+		var startOffset int64 = 0
 
-		if len(messages) == 0 {
-			fmt.Printf("partition %d: nothing new to read\n", p)
+		fetchCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		resp, err := client.Fetch(fetchCtx, &pb.FetchRequest{
+			Group:       group,
+			Topic:       topic,
+			Partition:   partition,
+			Offset:      startOffset,
+			MaxMessages: 100,
+		})
+		cancel()
+
+		if err != nil {
+			log.Printf("error fetching partition %d: %v", partition, err)
 			continue
 		}
 
-		fmt.Printf("partition %d: reading from offset %d\n", p, startOffset)
-		for _, m := range messages {
-			fmt.Printf("  consumed: offset=%d key=%s value=%s\n", m.Offset, m.Key, m.Value)
-			time.Sleep(150 * time.Millisecond)
+		if len(resp.Messages) == 0 {
+			fmt.Printf("partition %d: nothing to read\n", partition)
+			continue
 		}
 
-		// Commit the offset right after the last message we read,
-		// so a future run of this program would resume from here
-		// instead of re-reading everything.
-		lastOffset := messages[len(messages)-1].Offset
-		group.Commit("orders", p, lastOffset+1)
-		fmt.Printf("partition %d: committed offset %d\n", p, lastOffset+1)
+		fmt.Printf("partition %d: reading %d messages\n", partition, len(resp.Messages))
+		var lastOffset int64
+		for _, m := range resp.Messages {
+			fmt.Printf("  consumed: offset=%d key=%s value=%s\n", m.Offset, m.Key, m.Value)
+			lastOffset = m.Offset
+			time.Sleep(100 * time.Millisecond)
+		}
+
+		commitCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		_, err = client.Commit(commitCtx, &pb.CommitRequest{
+			Group:     group,
+			Topic:     topic,
+			Partition: partition,
+			Offset:    lastOffset + 1,
+		})
+		cancel()
+		if err != nil {
+			log.Printf("error committing offset for partition %d: %v", partition, err)
+		} else {
+			fmt.Printf("partition %d: committed offset %d\n", partition, lastOffset+1)
+		}
 	}
 
 	fmt.Println("\nConsumer done.")
