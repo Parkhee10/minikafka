@@ -15,7 +15,7 @@ This is a learning/portfolio project focused on backend systems engineering: con
 - [x] Write-ahead log (WAL) — persist messages to disk, survive restarts
 - [x] gRPC server — talk to the broker over the network instead of in-process
 - [ ] Consumer group rebalancing on join/leave
-- [ ] Benchmarks (throughput, latency)
+- [x] - [x] Benchmarks: 535 msgs/sec, p99 latency 109ms, 0 failures across 10,000 concurrent requests (see `cmd/loadtest/RESULTS.md`)
 
 ## Why this design
 
@@ -74,5 +74,5 @@ go test ./broker/... -v
 | 3–4 | Write-ahead log persistence + crash recovery ✅ |
 | 5–6 | gRPC server, multi-partition routing over the network, consumer group join/leave ✅ |
 | 7 | Rebalancing logic |
-| 8 | Concurrency hardening, load testing |
+| 8 | Concurrency hardening, load testing ✅ |
 | 9–10 | Benchmarks, polish, documentation |
