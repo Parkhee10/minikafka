@@ -13,7 +13,7 @@ This is a learning/portfolio project focused on backend systems engineering: con
 - [x] Consumer groups with per-partition offset tracking ("resume where I left off")
 - [x] Concurrency-safety verified with stress tests (50 concurrent producers, 5,000 messages)
 - [x] Write-ahead log (WAL) — persist messages to disk, survive restarts
-- [ ] gRPC server — talk to the broker over the network instead of in-process
+- [x] gRPC server — talk to the broker over the network instead of in-process
 - [ ] Consumer group rebalancing on join/leave
 - [ ] Benchmarks (throughput, latency)
 
@@ -72,7 +72,7 @@ go test ./broker/... -v
 |---|---|
 | 1–2 | Core partition/topic engine, consumer groups, CLI producer/consumer ✅ |
 | 3–4 | Write-ahead log persistence + crash recovery ✅ |
-| 5–6 | gRPC server, multi-partition routing over the network, consumer group join/leave |
+| 5–6 | gRPC server, multi-partition routing over the network, consumer group join/leave ✅ |
 | 7 | Rebalancing logic |
 | 8 | Concurrency hardening, load testing |
 | 9–10 | Benchmarks, polish, documentation |
