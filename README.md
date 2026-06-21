@@ -26,6 +26,8 @@ This is a learning/portfolio project focused on backend systems engineering: con
 **Consumer groups as a simple offset map.** A consumer group tracks the last committed offset per `(topic, partition)`. A consumer asks "where did I leave off?", reads forward from there, and commits its new position once done — this is the entire mechanism behind "at-least-once" delivery semantics.
 
 ## Project structure
+
+```
 broker/
   message.go         — core Message type
   partition.go        — concurrent, single-writer append-only log
@@ -38,7 +40,9 @@ cmd/
   consumer/main.go     — standalone consumer CLI with offset tracking
 proto/
   kafka.proto           — gRPC contract (not yet wired up — Day 5)
-## Running it
+
+```
+### Running it
 
 ```bash
 go mod tidy
