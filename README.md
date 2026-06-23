@@ -1,8 +1,9 @@
 # MiniKafka
 
-A simplified Kafka-style message broker built from scratch in Go — topics, partitions, concurrent producers, and consumer groups with offset tracking.
+A Kafka-inspired distributed message broker built in Go featuring partitioned logs, concurrent producers, consumer groups, offset tracking, write-ahead logging, crash recovery, and networked communication via gRPC.
 
-This is a learning/portfolio project focused on backend systems engineering: concurrency, safe shared state, and the core mechanics of a distributed log, rather than wrapping an existing library.
+The project explores the core engineering concepts behind event-driven systems and distributed messaging platforms, with a focus on concurrency safety, durability, partitioning strategies, and consumer group coordination.
+
 
 ![MiniKafka architecture](docs/architecture.svg)
 ## Status
@@ -18,6 +19,36 @@ This is a learning/portfolio project focused on backend systems engineering: con
 - [x] Concurrency-safety verified with stress tests (50 concurrent producers, 5,000 messages, zero duplicate/skipped offsets)
 - [x] Load tested: 535 msgs/sec, p99 latency 109ms, 0 failures across 10,000 concurrent network requests (see `cmd/loadtest/RESULTS.md`)
 - [ ] Heartbeat/timeout-based eviction (a consumer that crashes without calling Leave is never detected — known limitation, documented in code comments)
+
+
+## 📊 Performance Highlights
+
+* 535 messages/sec throughput
+* 10,000 concurrent network requests tested
+* 109 ms p99 latency
+* 50 concurrent producers
+* 5,000-message concurrency stress test
+* Zero duplicate offsets observed
+* Zero skipped offsets observed
+* Successful crash recovery validation
+
+## 🧠 Engineering Challenges Solved
+
+### Concurrent Offset Assignment
+
+Ensured offsets remain strictly ordered even under heavy concurrent producer activity.
+
+### Crash Recovery
+
+Implemented a write-ahead log capable of restoring messages and offsets after unexpected shutdowns.
+
+### Consumer Group Coordination
+
+Built partition ownership and rebalancing logic that redistributes partitions when consumers join or leave.
+
+### Networked Communication
+
+Moved producers and consumers into separate processes using gRPC, turning the broker into a true distributed system rather than an in-process library.
 
 
 ## Why this design
